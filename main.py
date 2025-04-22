@@ -10,10 +10,39 @@ from sklearn.metrics import classification_report, confusion_matrix
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import sys
 
-# Create results directory if it doesn't exist
-if not os.path.exists('results'):
-    os.makedirs('results')
+# Improved directory handling
+results_dir = 'results'
+
+# Check if results exists but is not a directory (which is your current issue)
+if os.path.exists(results_dir) and not os.path.isdir(results_dir):
+    print(f"WARNING: '{results_dir}' exists but is not a directory. Removing it.")
+    try:
+        os.remove(results_dir)  # Remove the file
+        print(f"Removed file: {results_dir}")
+    except Exception as e:
+        print(f"Error removing existing file: {e}")
+        print("Please manually remove the 'results' file and try again.")
+        sys.exit(1)
+
+# Now try to create the directory
+if not os.path.exists(results_dir):
+    try:
+        os.makedirs(results_dir)
+        print(f"Created directory: {results_dir}")
+    except Exception as e:
+        print(f"Error creating results directory: {e}")
+        # Try a different location like home directory
+        results_dir = os.path.join(os.path.expanduser("~"), 'archeology_results')
+        print(f"Trying alternate location: {results_dir}")
+        try:
+            os.makedirs(results_dir, exist_ok=True)
+            print(f"Created alternate directory: {results_dir}")
+        except Exception as e2:
+            print(f"Error creating alternate directory: {e2}")
+            print("Will skip saving visualizations.")
+            results_dir = None
 
 print("Starting archaeological site detection system...")
 
@@ -25,7 +54,7 @@ try:
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 except Exception as e:
     print(f"Error loading data: {e}")
-    exit(1)
+    sys.exit(1)
 
 # Step 2: Train models
 print("Training machine learning models...")
@@ -155,26 +184,43 @@ def visualize_predictions(X_images, true_labels, predictions, confidence=None, t
     plt.tight_layout()
     return fig
 
-# Visualize regular predictions
-vis_fig = visualize_predictions(
-    X_test, y_test, confidence_preds, confidence_scores, "Archaeological Site Detection"
-)
-vis_fig.savefig('results/predictions_visualization.png')
+# Check if we have a valid directory for saving
+if results_dir and os.path.isdir(results_dir):
+    try:
+        # Visualize regular predictions
+        vis_fig = visualize_predictions(
+            X_test, y_test, confidence_preds, confidence_scores, "Archaeological Site Detection"
+        )
+        vis_path = os.path.join(results_dir, 'predictions_visualization.png')
+        vis_fig.savefig(vis_path)
+        print(f"Saved visualization to {vis_path}")
 
-# Visualize predictions on faulty data
-vis_noisy_fig = visualize_predictions(
-    X_test_noisy, y_test, noisy_preds, title_prefix="Noisy Image"
-)
-vis_noisy_fig.savefig('results/noisy_predictions.png')
+        # Visualize predictions on faulty data
+        vis_noisy_fig = visualize_predictions(
+            X_test_noisy, y_test, noisy_preds, title_prefix="Noisy Image"
+        )
+        noisy_path = os.path.join(results_dir, 'noisy_predictions.png')
+        vis_noisy_fig.savefig(noisy_path)
+        print(f"Saved visualization to {noisy_path}")
 
-vis_blurry_fig = visualize_predictions(
-    X_test_blurry, y_test, blurry_preds, title_prefix="Blurry Image"
-)
-vis_blurry_fig.savefig('results/blurry_predictions.png')
+        vis_blurry_fig = visualize_predictions(
+            X_test_blurry, y_test, blurry_preds, title_prefix="Blurry Image"
+        )
+        blurry_path = os.path.join(results_dir, 'blurry_predictions.png')
+        vis_blurry_fig.savefig(blurry_path)
+        print(f"Saved visualization to {blurry_path}")
 
-vis_occluded_fig = visualize_predictions(
-    X_test_occluded, y_test, occluded_preds, title_prefix="Occluded Image"
-)
-vis_occluded_fig.savefig('results/occluded_predictions.png')
+        vis_occluded_fig = visualize_predictions(
+            X_test_occluded, y_test, occluded_preds, title_prefix="Occluded Image"
+        )
+        occluded_path = os.path.join(results_dir, 'occluded_predictions.png')
+        vis_occluded_fig.savefig(occluded_path)
+        print(f"Saved visualization to {occluded_path}")
 
-print("\nProcessing complete! Results saved to 'results/' directory.")
+        print(f"\nProcessing complete! Results saved to '{results_dir}' directory.")
+    except Exception as e:
+        print(f"Error saving visualizations: {e}")
+        print("Processing complete but some visualizations could not be saved.")
+else:
+    print("Results directory not available. Skipping visualization saving.")
+    print("\nProcessing complete but visualizations were not saved.")
